@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Ionic Variables Overrides */
+:root {
+  --ion-color-primary: #1a1a1a;
+  --ion-color-primary-rgb: 26,26,26;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255,255,255;
+  --ion-color-primary-shade: #171717;
+  --ion-color-primary-tint: #313131;
+}
