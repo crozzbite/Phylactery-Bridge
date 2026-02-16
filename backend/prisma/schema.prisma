@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  FREE
+  PLUS
+  PRO
+  ADMIN
+}
+
+enum PlanTier {
+  FREE
+  PLUS
+  PRO
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  PAST_DUE
+  INCOMPLETE
+  TRIALING
+}
+
+enum DeliberationStatus {
+  DRAFT
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+enum StepType {
+  ARCHITECT
+  AUDITOR
+  WRITER
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  firebaseUid   String    @unique
+  role          UserRole  @default(FREE)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relationships
+  subscription  Subscription?
+  workspaces    Workspace[]
+  deliberations Deliberation[]
+
+  // Preferences & Privacy
+  language             String  @default("es")
+  preferredArchitectModel String?
+  preferredAuditorModel   String?
+  emailOnComplete      Boolean @default(true)
+  emailOnProductUpdate Boolean @default(true)
+  allowDataTraining    Boolean @default(false)
+  
+  // Security
+  failedLoginAttempts  Int     @default(0)
+  isSuspended          Boolean @default(false)
+
+  @@index([email])
+  @@index([firebaseUid])
+}
+
+model Subscription {
+  id                   String             @id @default(uuid())
+  userId               String             @unique
+  plan                 PlanTier           @default(FREE)
+  status               SubscriptionStatus @default(ACTIVE)
+  stripeCustomerId     String?
+  stripeSubscriptionId String?            @unique
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id])
+  invoices Invoice[]
+
+  @@index([stripeSubscriptionId])
+}
+
+model Invoice {
+  id              String   @id @default(uuid())
+  subscriptionId  String
+  stripeInvoiceId String   @unique
+  amount          Int      // In cents
+  currency        String   @default("usd")
+  status          String   // paid, open, void, uncollectible
+  paidAt          DateTime?
+  createdAt       DateTime @default(now())
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id])
+}
+
+model Workspace {
+  id        String   @id @default(uuid())
+  ownerId   String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner         User           @relation(fields: [ownerId], references: [id])
+  deliberations Deliberation[]
+
+  @@index([ownerId])
+}
+
+model Deliberation {
+  id          String             @id @default(uuid())
+  workspaceId String
+  userId      String
+  title       String
+  description String?
+  status      DeliberationStatus @default(DRAFT)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  // Data
+  contextFiles Json? // Array of file metadata/content
+  
+  // Metrics
+  totalInputTokens  Int @default(0)
+  totalOutputTokens Int @default(0)
+  estimatedCost     Float @default(0.0)
+
+  workspace Workspace          @relation(fields: [workspaceId], references: [id])
+  user      User               @relation(fields: [userId], references: [id])
+  steps     DeliberationStep[]
+
+  @@index([workspaceId])
+  @@index([userId])
+}
+
+model DeliberationStep {
+  id             String   @id @default(uuid())
+  deliberationId String
+  stepOrder      Int
+  stepType       StepType
+  modelUsed      String?
+  outputContent  String?  @db.Text
+  retryCount     Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Metrics
+  inputTokens  Int @default(0)
+  outputTokens Int @default(0)
+
+  deliberation Deliberation @relation(fields: [deliberationId], references: [id])
+
+  @@index([deliberationId])
+}
