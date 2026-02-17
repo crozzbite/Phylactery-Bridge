@@ -46,6 +46,8 @@ model User {
   id            String    @id @default(uuid())
   email         String    @unique
   firebaseUid   String    @unique
+  displayName   String?
+  avatarUrl     String?
   role          UserRole  @default(FREE)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -56,16 +58,28 @@ model User {
   deliberations Deliberation[]
 
   // Preferences & Privacy
-  language             String  @default("es")
+  language                String  @default("es")
   preferredArchitectModel String?
   preferredAuditorModel   String?
-  emailOnComplete      Boolean @default(true)
-  emailOnProductUpdate Boolean @default(true)
-  allowDataTraining    Boolean @default(false)
+  emailOnComplete         Boolean @default(true)
+  emailOnProductUpdate    Boolean @default(true)
+  marketingEmails         Boolean @default(false)
+  allowDataTraining       Boolean @default(false)
   
   // Security
-  failedLoginAttempts  Int     @default(0)
-  isSuspended          Boolean @default(false)
+  failedLoginAttempts  Int       @default(0)
+  isSuspended          Boolean   @default(false)
+  suspensionReason     String?
+  lastFailedAttempt    DateTime?
+
+  // Usage (UsageCounter Flattened)
+  currentDeliberations Int      @default(0)
+  monthlyLimit         Int      @default(5)
+  tokensUsed           Int      @default(0)
+  totalCostCents       Int      @default(0)
+  usageLastResetDate   DateTime @default(now())
+  
+  stripeCustomerId     String?   @unique
 
   @@index([email])
   @@index([firebaseUid])
@@ -116,21 +130,23 @@ model Workspace {
 }
 
 model Deliberation {
-  id          String             @id @default(uuid())
-  workspaceId String
-  userId      String
-  title       String
-  description String?
-  status      DeliberationStatus @default(DRAFT)
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  id             String             @id @default(uuid())
+  workspaceId    String
+  userId         String
+  title          String
+  description    String?
+  architectModel String?
+  auditorModel   String?
+  status         DeliberationStatus @default(DRAFT)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 
   // Data
   contextFiles Json? // Array of file metadata/content
   
   // Metrics
-  totalInputTokens  Int @default(0)
-  totalOutputTokens Int @default(0)
+  totalInputTokens  Int   @default(0)
+  totalOutputTokens Int   @default(0)
   estimatedCost     Float @default(0.0)
 
   workspace Workspace          @relation(fields: [workspaceId], references: [id])

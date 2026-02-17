@@ -158,7 +158,7 @@ gantt
     section Sprint 6: CI/CD & Launch
     GitHub Actions Pipeline      :         s6a, after s5d, 2d
     Security Audit               :         s6b, after s6a, 2d
-    Mobile Polish (Ionic)        :         s6c, after s6b, 2d
+    Mobile Polish (PWA)          :         s6c, after s6b, 2d
     Production Deploy            :         s6d, after s6c, 2d
 ```
 

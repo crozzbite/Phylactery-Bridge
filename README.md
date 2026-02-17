@@ -5,7 +5,7 @@ This is the monorepo for **Phylactery Bridge**, the SaaS platform connecting use
 ## Structure
 
 - **backend/**: NestJS BFF (Backend for Frontend). Handles Identity, Billing, and Platform business logic.
-- **frontend/**: Angular v19 + Ionic + TailwindCSS. The user-facing web and mobile application.
+- **frontend/**: Angular v19 + TailwindCSS. The user-facing web application (PWA).
 - **docker-compose.yml**: Local infrastructure (PostgreSQL, Redis).
 
 ## Getting Started
