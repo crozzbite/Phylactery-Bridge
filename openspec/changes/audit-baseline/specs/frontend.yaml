@@ -1,0 +1,20 @@
+spec: 0.1.0
+title: Phylactery Bridge Frontend
+type: app
+language: typescript
+framework: angular
+
+architecture:
+  style: features
+  modules:
+    - name: Core
+      path: src/app/core
+    - name: Shared
+      path: src/app/shared
+    - name: Features
+      path: src/app/features
+
+integration:
+  api:
+    url: http://localhost:3000
+    type: rest

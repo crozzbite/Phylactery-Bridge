@@ -1,0 +1,241 @@
+openapi: 3.0.3
+info:
+  title: Phylactery Billing API
+  version: 1.0.0
+  description: |
+    Production-ready Billing API for Phylactery Bridge SaaS.
+    Handles Stripe Checkout (Redirect), Customer Portal, and Webhook fulfillment.
+    
+    ## Security Model
+    - All user-facing endpoints require Firebase Bearer Token.
+    - Webhook endpoint uses Stripe-Signature header verification (no JWT).
+    - Raw body parsing is required for webhook signature verification.
+    
+    ## Idempotency
+    - Webhook handler stores processed `event.id` to prevent duplicate processing.
+    - Checkout session creation is idempotent per user+priceId combination.
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+paths:
+  /billing/checkout:
+    post:
+      operationId: createCheckoutSession
+      summary: Create a Stripe Checkout Session (Redirect)
+      description: |
+        Creates a Stripe Checkout Session in `subscription` mode.
+        If the user does not have a `stripeCustomerId`, one is created first.
+        Returns a URL to redirect the user to Stripe's hosted checkout page.
+      tags: [Billing]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutRequest'
+      responses:
+        '201':
+          description: Checkout session created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutResponse'
+        '400':
+          description: Invalid priceId or request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          description: Stripe API error or internal failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /billing/portal:
+    post:
+      operationId: createPortalSession
+      summary: Create a Stripe Customer Portal Session
+      description: |
+        Creates a Stripe Billing Portal session for the authenticated user.
+        Allows the user to manage their subscription, update payment methods,
+        and view invoices. Requires the user to have a `stripeCustomerId`.
+      tags: [Billing]
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: Portal session created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalResponse'
+        '400':
+          description: User has no Stripe Customer (never subscribed)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          description: Stripe API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /billing/webhook:
+    post:
+      operationId: handleStripeWebhook
+      summary: Handle Stripe Webhook Events
+      description: |
+        Receives and processes Stripe webhook events.
+        
+        **CRITICAL SECURITY:**
+        - Verifies `Stripe-Signature` header against `STRIPE_WEBHOOK_SECRET`.
+        - Requires raw body (not parsed JSON) for signature verification.
+        - NestJS must use `app.use('/api/v1/billing/webhook', raw({ type: 'application/json' }))`.
+        
+        **Handled Events:**
+        - `checkout.session.completed` → Create/Update Subscription, upgrade User role.
+        - `invoice.payment_succeeded` → Update Subscription status to ACTIVE.
+        - `invoice.payment_failed` → Mark Subscription as PAST_DUE.
+        - `customer.subscription.updated` → Sync plan changes (upgrade/downgrade).
+        - `customer.subscription.deleted` → Downgrade User to FREE, cancel Subscription.
+        
+        **Idempotency:**
+        - Stores processed `event.id` to prevent duplicate handling on Stripe retries.
+      tags: [Billing]
+      parameters:
+        - in: header
+          name: Stripe-Signature
+          required: true
+          schema:
+            type: string
+          description: Stripe webhook signature for payload verification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Raw Stripe Event payload (verified via signature)
+      responses:
+        '200':
+          description: Event processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received:
+                    type: boolean
+                    example: true
+        '400':
+          description: Invalid signature or malformed payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /billing/subscription:
+    get:
+      operationId: getSubscriptionStatus
+      summary: Get current user subscription status
+      description: Returns the authenticated user's current subscription details.
+      tags: [Billing]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current subscription info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Firebase ID Token
+
+  schemas:
+    CheckoutRequest:
+      type: object
+      required: [priceId]
+      properties:
+        priceId:
+          type: string
+          description: Stripe Price ID for the selected plan
+          example: "price_1Ot..."
+
+    CheckoutResponse:
+      type: object
+      required: [sessionId, url]
+      properties:
+        sessionId:
+          type: string
+          description: Stripe Checkout Session ID
+        url:
+          type: string
+          format: uri
+          description: URL to redirect the user to Stripe Checkout
+
+    PortalResponse:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          format: uri
+          description: URL to redirect the user to Stripe Customer Portal
+
+    SubscriptionResponse:
+      type: object
+      required: [plan, status]
+      properties:
+        plan:
+          type: string
+          enum: [FREE, PLUS, PRO]
+        status:
+          type: string
+          enum: [ACTIVE, CANCELED, PAST_DUE, INCOMPLETE, TRIALING]
+        currentPeriodEnd:
+          type: string
+          format: date-time
+          nullable: true
+        stripeSubscriptionId:
+          type: string
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      required: [statusCode, message]
+      properties:
+        statusCode:
+          type: integer
+        message:
+          type: string
+        error:
+          type: string
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid authentication token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

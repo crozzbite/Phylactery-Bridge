@@ -71,7 +71,7 @@ Para lanzar **Bridge** con la arquitectura Hybrid BFF:
 | **Persistencia** | PostgreSQL conectada al BFF (Prisma schema). | 🔴 Crítica | BFF (Node.js) |
 | **Engine API** | Endpoints `/api/v1/bridge/*` optimizados para el BFF. | 🔴 Crítica | Engine (Python) |
 | **Seguridad** | Firebase/Supabase Auth integrada en BFF + Engine validation. | 🔴 Crítica | BFF + Engine |
-| **Pagos** | Integración con Stripe (SaaS Accounting Skill). | 🟡 Alta | BFF (Node.js) |
+| **Pagos** | Integración con Stripe (SaaS Accounting Skill). | ⏳ Deferred (Sprint 6) | BFF (Node.js) |
 | **Agentes** | `.md` específicos para Architect, Auditor y Writer. | 🟢 Media | Engine (Python) |
 
 ---

@@ -1,0 +1,47 @@
+{
+    "name": "OpenSpec Watcher",
+    "nodes": [
+        {
+            "parameters": {
+                "files": [
+                    "C:/Users/HP/Desktop/WorkDesktop/Phylactery-Bridge/openspec/changes/*/tasks.md",
+                    "C:/Users/HP/Desktop/WorkDesktop/phylactery/openspec/changes/*/tasks.md",
+                    "C:/Users/HP/Desktop/WorkDesktop/SkullRender/openspec/changes/*/tasks.md"
+                ],
+                "options": {}
+            },
+            "name": "Local File Trigger",
+            "type": "n8n-nodes-base.localFileTrigger",
+            "typeVersion": 1,
+            "position": [
+                460,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "content": "Check Notion/Jira for new tasks from OpenSpec!"
+            },
+            "name": "Log to Console",
+            "type": "n8n-nodes-base.noOp",
+            "typeVersion": 1,
+            "position": [
+                660,
+                300
+            ]
+        }
+    ],
+    "connections": {
+        "Local File Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Log to Console",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

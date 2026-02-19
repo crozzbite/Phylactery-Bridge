@@ -12,8 +12,10 @@ export class FirebaseService implements OnModuleInit {
     const privateKey = this.configService
       .get<string>('FIREBASE_PRIVATE_KEY')
       ?.replace(/\\n/g, '\n');
+    const databaseURL = this.configService.get<string>('FIREBASE_DATABASE_URL');
 
     if (!projectId || !clientEmail || !privateKey) {
+
       console.warn('Firebase credentials not provided. Auth verification will fail.');
       return;
     }
@@ -25,6 +27,7 @@ export class FirebaseService implements OnModuleInit {
           clientEmail,
           privateKey,
         }),
+        databaseURL,
       });
       console.log('Firebase Admin SDK initialized');
     }

@@ -1,0 +1,52 @@
+%% Phylactery Beta Access Flow — Hardened
+%% Covers: Atomic Redemption, Expiry, Security Gates
+
+sequenceDiagram
+    participant User
+    participant FE as Frontend (Angular)
+    participant BE as Backend (NestJS)
+    participant DB as Postgres
+
+    Note over User, DB: Scenario: Access Redemption
+
+    User->>FE: Enters Code "PHY-LAUNCH"
+    FE->>BE: POST /api/v1/beta/redeem {code}
+    
+    BE->>BE: Check User.betaAccess
+    alt already has access
+        BE-->>FE: 409 Conflict
+    end
+
+    BE->>DB: BEGIN TRANSACTION
+    
+    %% Atomic Update with Validation
+    BE->>DB: UPDATE AccessCode SET uses = uses + 1 
+    BE->>DB: WHERE code = $1 AND uses < maxUses 
+    BE->>DB: AND isActive = true AND (expiresAt IS NULL OR expiresAt > NOW())
+    BE->>DB: RETURNING *
+    
+    alt Update returns Row (Success)
+        BE->>DB: UPDATE User SET betaAccess=true, role=PRO
+        BE->>DB: COMMIT
+        BE-->>FE: 200 OK { success: true, role: PRO }
+        
+        FE->>User: Show Success Message
+        FE->>FE: Redirect to /dashboard
+        
+    else Update returns Null (Failed)
+        BE->>DB: ROLLBACK
+        BE-->>FE: 400 Bad Request (Invalid/Expired/Exhausted)
+        FE->>User: Show "Code Invalid or Expired"
+    end
+
+    Note over FE, BE: Security: Backend Guard
+
+    User->>FE: Navigate to /dashboard
+    FE->>BE: GET /api/v1/workspaces
+    
+    alt User.betaAccess == false
+        BE-->>FE: 403 Forbidden
+        FE->>FE: Redirect to /beta/gate
+    else User.betaAccess == true
+        BE-->>FE: 200 OK [Data]
+    end

@@ -1,0 +1,141 @@
+openapi: 3.0.3
+info:
+  title: Phylactery Beta Access API
+  version: 1.0.0
+  description: |
+    API for managing Beta Access via Access Codes.
+    Gatekeeper for Sprint 2. Replaces Stripe Billing for now.
+    
+    ## Security
+    - Hard Gate: Users without `betaAccess` cannot use core features.
+    - Atomic Redemption: Prevents race conditions on `maxUses`.
+    - Rate Limited: 5 requests/minute per user.
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+paths:
+  /beta/redeem:
+    post:
+      operationId: redeemAccessCode
+      summary: Redeem a Beta Access Code
+      description: |
+        Validates an access code atomically.
+        If valid, active, not expired, and under usage limit:
+        - Increments `uses` count.
+        - Sets user `betaAccess=true` and `role=PRO`.
+        - Creates an audit log entry.
+        
+        **Idempotency:** If redemption fails (e.g., code limit reached during transaction), no partial updates occur.
+      tags: [Beta]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+                  example: "PHY-LAUNCH-2026"
+                  description: "Case-insensitive code (normalized to UPPERCASE)"
+      responses:
+        '200':
+          description: Access Granted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, role]
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                  role:
+                    type: string
+                    example: "PRO"
+        '400':
+          description: Code invalid, expired, or usage limit reached
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: User already has beta access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /beta/status:
+    get:
+      operationId: getBetaStatus
+      summary: Check current user beta status
+      tags: [Beta]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current Beta Status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [hasAccess, role]
+                properties:
+                  hasAccess:
+                    type: boolean
+                    example: true
+                  role:
+                    type: string
+                    example: "PRO"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Firebase ID Token
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [statusCode, message]
+      properties:
+        statusCode:
+          type: integer
+        message:
+          type: string
+        error:
+          type: string
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid authentication token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: User does not have beta access (403)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

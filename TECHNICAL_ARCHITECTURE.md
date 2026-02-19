@@ -1,120 +1,105 @@
-# 🛠️ Phylactery Bridge: Technical Architecture
-> **Philosophy:** "Bones (Python Engine) + Spine (Node.js BFF) + Skin (Angular UI)"
+# 🛠️ Phylactery Bridge: Technical Architecture (Enterprise Edition)
+> **Philosophy:** "Titanium Bones (Python Engine) + Steel Spine (Node.js BFF) + Polished Skin (Angular UI)"
 
 ## 1. High-Level Architecture
-
-Bridge is a **3-layer Hybrid BFF** application with **2 backends**:
+Bridge is a **3-layer Hybrid BFF** application built on **Hexagonal Architecture** principles.
 
 | Layer | Repo | Technology | Responsibility |
 | :--- | :--- | :--- | :--- |
-| **Skin** (Frontend) | `Phylactery-Bridge` | Angular v19, Signals, TailwindCSS | UX, State Management, Real-time UI |
-| **Spine** (BFF) | `Phylactery-Bridge` | NestJS, Prisma, BullMQ, Redis | Auth, Payments, Usage, Rate Limiting, Job Queue |
-| **Bones** (Engine) | `phylactery` | Python 3.13, FastAPI, LangGraph, Pinecone | AI Logic, Agent Orchestration, RAG, MCP Tools |
+| **Skin** (Frontend) | `Phylactery-Bridge` | Angular v19+ (Stable), TailwindCSS, Signal Store | UX, Real-time Feedback, Secure Inputs |
+| **Spine** (BFF) | `Phylactery-Bridge` | NestJS (Rest + SSE), BullMQ, Redis, PostgreSQL | Auth, Billing, Usage Tracking, Job Orchestration, Security Gateway |
+| **Bones** (Engine) | `phylactery` | Python 3.13, FastAPI, LangGraph, Pinecone | AI Logic, Agent Orchestration, RAG, Prompt Guard |
 
 ```mermaid
 graph TD
-    User[User] -->|HTTPS| Angular[Angular Frontend]
-    Angular -->|REST/WS| BFF[NestJS BFF]
+    User((User)) -->|HTTPS + WAF| CDN[Cloudflare CDN]
+    CDN -->|Static Assets| S3[Storage Bucket]
+    CDN -->|API Requests| LB[Load Balancer]
     
-    subgraph Bridge ["Phylactery Bridge (This Repo)"]
-        Angular
-        BFF
+    subgraph "Secure Zone (VPC)"
+        LB -->|Rate Limited| BFF[NestJS BFF Cluster]
+        
+        subgraph "BFF Layer (Hexagonal)"
+            BFF -->|Auth| Guard[AuthGuard + Throttler]
+            BFF -->|Domain| Domain[Domain Services]
+            BFF -->|Async| Queue[BullMQ (Redis)]
+        end
+        
+        Queue -->|Job Processing| Worker[Audit Worker]
+        
+        subgraph "Persistence"
+            Domain -->|ORM| DB[(PostgreSQL + PGBouncer)]
+            Domain -->|Cache| Redis[(Redis Cluster)]
+        end
+        
+        Worker -->|Internal API| Engine[Phylactery Engine]
     end
     
-    BFF -->|Auth| Supabase[Firebase/Supabase Auth]
-    BFF -->|Jobs| Queue[BullMQ + Redis]
-    BFF -->|Data| Postgres[(PostgreSQL + Prisma)]
-    BFF -->|Payments| Stripe[Stripe API]
-    
-    Queue -->|Process| Worker[Deliberation Worker]
-    Worker -->|HTTP + API Key| Engine[Phylactery Engine]
-    
-    subgraph PHY ["Phylactery (External Repo)"]
-        Engine -->|Orchestrate| LangGraph[LangGraph Agents]
-        LangGraph -->|Query| Pinecone[(Pinecone RAG)]
-        LangGraph -->|Generate| LLMs[OpenAI / Anthropic / Gemini]
+    subgraph "External Services"
+        Engine -->|LLM| OpenAI[OpenAI / Anthropic]
+        BFF -->|Payments| Stripe[Stripe]
     end
-    
-    Engine -->|SSE Stream| BFF
-    BFF -->|SSE Forward| Angular
 ```
 
-## 2. Integration Protocol
+## 2. Backend Architecture (The "Steel Spine")
+We enforce **Clean Architecture** with strict module separation:
 
-### BFF → Engine Communication
-- **Protocol**: REST + SSE (Server-Sent Events) for streaming agent thoughts
-- **Auth**: Internal API Key (shared secret between BFF and Engine)
-- **Namespace**: Engine exposes `/api/v1/bridge/*` endpoints optimized for BFF calls
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant Angular
-    participant BFF as NestJS BFF
-    participant Engine as Python Engine
-    participant LLMs
-
-    User->>Angular: "Create a secure Login Component"
-    Angular->>BFF: POST /api/v1/deliberations
-    BFF->>BFF: AuthGuard + UsageGuard + ThrottlerGuard
-    BFF->>BFF: Create Deliberation (PENDING) in Postgres
-    BFF->>BFF: Enqueue BullMQ Job
-    BFF-->>Angular: 202 Accepted {id, status}
-
-    BFF->>Engine: POST /api/v1/bridge/deliberate {prompt, context}
-    loop Deliberation (LangGraph)
-        Engine->>LLMs: Agent Architect thinks...
-        Engine-->>BFF: SSE: "Architect is analyzing..."
-        BFF-->>Angular: SSE Forward: "Architect is analyzing..."
-        Engine->>LLMs: Agent Auditor reviews...
-        Engine-->>BFF: SSE: "Auditor found 2 vulnerabilities..."
-        BFF-->>Angular: SSE Forward: "Auditor found 2 vulnerabilities..."
-    end
-    Engine->>LLMs: Agent Writer generates final code
-    Engine-->>BFF: Final Response (Markdown + Code + Token Usage)
-    BFF->>BFF: Update Postgres (steps, tokens, cost)
-    BFF->>BFF: Update User usage counters
-    BFF-->>Angular: Final SSE + Complete status
-    Angular->>User: Renders Beautiful UI
+```
+src/
+├── core/           # Framework extensions (Interceptors, Filters, Guards)
+├── shared/         # Utilities (Date, String, Math)
+└── modules/
+    ├── identity/   # Auth, Users, Roles
+    ├── billing/    # Subscriptions, Invoices, Usage
+    ├── audit/      # Core Domain: Audit Sessions, Reports
+    └── llm-gateway/# Anti-Corruption Layer for AI Engine
 ```
 
-## 3. Tech Stack Requirements
+### Key Considerations
+1.  **Async-First:** All LLM interactions are asynchronous via **BullMQ**. No HTTP timeouts waiting for AI.
+2.  **Security-First:**
+    *   **Helmet:** Secure HTTP headers.
+    *   **Throttler:** Global + Per-Endpoint Rate Limiting.
+    *   **Zod:** Strict runtime validation for ALL inputs/outputs.
+    *   **CSP:** Content Security Policy to prevent XSS.
+3.  **Observability:**
+    *   **OpenTelemetry:** Distributed tracing (BFF -> Engine).
+    *   **Structured Logging:** JSON logs with Correlation IDs.
+    *   **Health Checks:** `/health` endpoints for K8s/Docker.
 
-### Frontend (This Repo — `/frontend`)
-*   **Node:** v20+
-*   **Angular CLI:** v19+
-*   **State:** Signals (Native) — No NgRx needed for MVP
-*   **Styling:** TailwindCSS v4 + DaisyUI (Cyberpunk aesthetic)
-*   **Auth:** Firebase Auth (Token sent to BFF for validation)
+## 3. Frontend Architecture (The "Polished Skin")
+Targeting **Angular v20** (Future-Proof Strategy) using v19+ foundations today.
 
-### BFF (This Repo — `/backend`)
-*   **Runtime:** Node.js 20 LTS
-*   **Framework:** NestJS (DI, Modules, Guards — "The Angular Way")
-*   **Database:** PostgreSQL + Prisma (type-safe, declarative migrations)
-*   **Queue:** BullMQ + Redis (resilient async job processing)
-*   **Validation:** Zod (runtime LLM output validation)
-*   **Auth:** Supabase/Firebase Token Verification
+*   **Framework:** Angular v19 (Strict Standalone, ready for v20 Signals API).
+*   **Styling:** TailwindCSS v4 + DaisyUI (Cyberpunk aesthetic).
+*   **State Management:** **Signals** (Native) for local state, **SignalStore** (NgRx) for global state.
+*   **Performance:** `OnPush` change detection everywhere. `@defer` for lazy loading components.
+*   **Mobile Strategy:** **PWA First**. Native mobile wrapper (Capacitor/NativeScript) moved to Phase 2.5+
+*   **Security:**
+    *   Strict Input Sanitization (DOMPurify).
+    *   HttpOnly Cookies for Auth Tokens (if possible) or secure LocalStorage encryption.
 
-### Engine (Phylactery Repo)
-*   **Runtime:** Python 3.13+
-*   **Framework:** FastAPI + Uvicorn
-*   **AI:** LangGraph (Agent Orchestration)
-*   **Memory:** Pinecone (Vector RAG)
-*   **Auth:** Internal API Key validation (BFF → Engine)
-*   **Endpoints:** `/api/v1/bridge/*` namespace
+## 4. Integration Protocol (BFF <-> Engine)
 
-## 4. Development Workflow
-1.  **Run Engine:** `cd ../phylactery && docker-compose up`
-2.  **Run BFF:** `cd backend && npm run start:dev`
-3.  **Run Frontend:** `cd frontend && ng serve`
-4.  **Deploy:**
-    *   Engine → Render/Railway (Docker)
-    *   BFF → Render/Railway (Node.js)
-    *   Frontend → Vercel/Netlify (Static)
+### The "Air-Gapped" Protocol
+The Engine never talks to the public internet directly.
+1.  **Request:** BFF receives user prompt -> Enqueues Job -> Returns `job_id`.
+2.  **Process:** Worker picks up Job -> Calls Engine `/api/v1/bridge/deliberate` (Internal Network).
+3.  **Stream:** Engine streams tokens via SSE -> Worker aggregates or forwards via WebSocket to UI.
+4.  **Completion:** Worker updates DB -> Triggers Webhook/Socket event to UI.
 
-## 5. Related Documents
+### AI Safety Layer
+*   **Prompt Guard:** Input is scanned for Injection attacks *before* reaching the LLM.
+*   **Output Sanitization:** LLM output is scanned for malicious patterns/PII *before* storing.
+*   **Cost Tracking:** Every token is counted and billed to the `ValidationSession`.
 
-*   [PROJECT_ANALYSIS.md](./PROJECT_ANALYSIS.md) — Strategic analysis and SWOT
-*   [PRODUCT_REQUIREMENTS.md](./PRODUCT_REQUIREMENTS.md) — User stories and MVP scope
-*   [BUSINESS_PLAN.md](./BUSINESS_PLAN.md) — Monetization and GTM strategy
-*   [v0.1 Backend Design](file:///C:/Users/HP/.gemini/antigravity/brain/d9e63c47-3c93-4ae2-8a5b-9ffa90549ccf/phylactery_bridge_v0.1_design.md) — Detailed BFF specification
+## 5. Infrastructure & DevOps
+*   **Docker:** Multi-stage production builds (Distroless images).
+*   **CI/CD:** GitHub Actions (Lint -> Test -> Build -> Deploy).
+*   **Database:** PostgreSQL with **Row Level Security (RLS)** capability (prepared for future Supabase migration if needed).
+
+## 6. Testing Strategy ("The Safety Net")
+*   **Unit:** Jest (Background) / Jasmine (Frontend). Coverage > 80%.
+*   **Integration:** Supertest (API endpoints).
+*   **E2E:** Cypress (Critical User Journeys: Login -> Pay -> Audit).
+*   **Load:** K6 (Simulate 100 concurrent auditors).

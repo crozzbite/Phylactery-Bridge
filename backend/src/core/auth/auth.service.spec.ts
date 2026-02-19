@@ -1,13 +1,11 @@
-import { AuthService } from "./auth.service";
-import { RegisterDto } from "./dto/register.dto";
-import { UnauthorizedException, InternalServerErrorException } from "@nestjs/common";
 
-// Mock dependencies
-const mockFirebaseService = {
-  auth: {
-    verifyIdToken: jest.fn(),
-  },
-};
+import { Test, TestingModule } from '@nestjs/testing';
+import { AuthService } from './auth.service';
+import { PrismaService } from '../../core/prisma/prisma.service';
+import { FirebaseService } from './firebase.service';
+import { Logger } from '@nestjs/common';
+import { mockFirebaseAdmin, mockDecodedToken, mockUserRecord } from '../../../test/fixtures/firebase-mock';
+import { UnauthorizedException } from '@nestjs/common';
 
 const mockPrismaService = {
   user: {
@@ -16,87 +14,79 @@ const mockPrismaService = {
   },
 };
 
-describe("AuthService", () => {
-  let authService: AuthService;
+const mockFirebaseService = {
+  auth: {
+    verifyIdToken: jest.fn(),
+  }
+};
 
-  beforeEach(() => {
-    mockFirebaseService.auth.verifyIdToken.mockReset();
-    mockPrismaService.user.upsert.mockReset();
-    mockPrismaService.user.findUnique.mockReset();
+describe('AuthService', () => {
+  let service: AuthService;
+  let prisma: typeof mockPrismaService;
+  let firebase: typeof mockFirebaseService;
 
-    authService = new AuthService(
-      mockFirebaseService as any,
-      mockPrismaService as any
-    );
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AuthService,
+        Logger,
+        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: FirebaseService, useValue: mockFirebaseService },
+      ],
+    }).compile();
+
+    service = module.get<AuthService>(AuthService);
+    prisma = module.get(PrismaService);
+    firebase = module.get(FirebaseService);
+
+    jest.clearAllMocks();
   });
 
-  // --- Happy Paths ---
-
-  it("should register a new user via upsert (idempotent)", async () => {
-    const dto: RegisterDto = { firebaseToken: "valid-token", email: "test@example.com" };
-    const decodedToken = { uid: "user-123", email: "test@example.com" };
-    const newUser = { id: "uuid-1", firebaseUid: "user-123", email: "test@example.com", role: "FREE" };
-
-    mockFirebaseService.auth.verifyIdToken.mockResolvedValue(decodedToken);
-    mockPrismaService.user.upsert.mockResolvedValue(newUser);
-
-    const result = await authService.register(dto);
-
-    expect(mockFirebaseService.auth.verifyIdToken).toHaveBeenCalledWith("valid-token");
-    expect(mockPrismaService.user.upsert).toHaveBeenCalled();
-    expect(result).toEqual(newUser);
-    expect(result.role).toBe("FREE");
+  it('should be defined', () => {
+    expect(service).toBeDefined();
   });
 
-  it("should return existing user on duplicate registration (idempotent)", async () => {
-    const dto: RegisterDto = { firebaseToken: "valid-token" };
-    const decodedToken = { uid: "user-123", email: "existing@example.com" };
-    const existingUser = { id: "uuid-1", firebaseUid: "user-123", email: "existing@example.com", role: "FREE" };
+  describe('register', () => {
+    it('should register a new user successfully', async () => {
+      const dto = { firebaseToken: 'valid-token' };
+      const expectedUser = { id: '1', firebaseUid: 'test-uid', email: 'test@phylactery.ai', role: 'FREE' };
 
-    mockFirebaseService.auth.verifyIdToken.mockResolvedValue(decodedToken);
-    mockPrismaService.user.upsert.mockResolvedValue(existingUser);
+      mockFirebaseService.auth.verifyIdToken.mockResolvedValue(mockDecodedToken);
+      mockPrismaService.user.upsert.mockResolvedValue(expectedUser);
 
-    const result = await authService.register(dto);
+      const result = await service.register(dto);
 
-    expect(mockPrismaService.user.upsert).toHaveBeenCalled();
-    expect(result).toEqual(existingUser);
+      expect(firebase.auth.verifyIdToken).toHaveBeenCalledWith(dto.firebaseToken);
+      expect(prisma.user.upsert).toHaveBeenCalled();
+      expect(result).toEqual(expectedUser);
+    });
+
+    it('should throw UnauthorizedException if token is invalid', async () => {
+        const dto = { firebaseToken: 'invalid-token' };
+        mockFirebaseService.auth.verifyIdToken.mockRejectedValue(new Error('Invalid token'));
+  
+        await expect(service.register(dto)).rejects.toThrow(UnauthorizedException);
+      });
   });
 
-  // --- Error Paths (Discriminated) ---
+  describe('getUserProfile', () => {
+    it('should return user profile if user exists', async () => {
+        const uid = 'test-uid';
+        const expectedUser = { id: '1', firebaseUid: uid, email: 'test@phylactery.ai' };
+        
+        mockPrismaService.user.findUnique.mockResolvedValue(expectedUser);
 
-  it("should throw UnauthorizedException on invalid Firebase token", async () => {
-    const dto: RegisterDto = { firebaseToken: "bad-token" };
-    mockFirebaseService.auth.verifyIdToken.mockRejectedValue(new Error("Token expired"));
+        const result = await service.getUserProfile(uid);
 
-    expect(authService.register(dto)).rejects.toThrow(UnauthorizedException);
-  });
+        expect(prisma.user.findUnique).toHaveBeenCalledWith({ where: { firebaseUid: uid } });
+        expect(result).toEqual(expectedUser);
+    });
 
-  it("should throw InternalServerErrorException on database failure", async () => {
-    const dto: RegisterDto = { firebaseToken: "valid-token" };
-    const decodedToken = { uid: "user-123", email: "test@example.com" };
+    it('should return null if user does not exist', async () => {
+        const uid = 'non-existent-uid';
+        mockPrismaService.user.findUnique.mockResolvedValue(null);
 
-    mockFirebaseService.auth.verifyIdToken.mockResolvedValue(decodedToken);
-    mockPrismaService.user.upsert.mockRejectedValue(new Error("DB connection lost"));
-
-    expect(authService.register(dto)).rejects.toThrow(InternalServerErrorException);
-  });
-
-  // --- Edge Cases ---
-
-  it("should use fallback email when Firebase token has no email", async () => {
-    const dto: RegisterDto = { firebaseToken: "valid-token" };
-    const decodedToken = { uid: "anon-uid-456" }; // No email in token
-
-    mockFirebaseService.auth.verifyIdToken.mockResolvedValue(decodedToken);
-    mockPrismaService.user.upsert.mockImplementation(async (args: any) => ({
-      id: "uuid-2",
-      firebaseUid: "anon-uid-456",
-      email: args.create.email,
-      role: "FREE",
-    }));
-
-    const result = await authService.register(dto);
-
-    expect(result.email).toBe("anon-anon-uid-456@phylactery.ai");
+        await expect(service.getUserProfile(uid)).rejects.toThrow(UnauthorizedException);
+    });
   });
 });

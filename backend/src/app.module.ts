@@ -13,6 +13,11 @@ import { RequestIdMiddleware } from './core/middleware/request-id.middleware';
 import { ThrottlerConfigService } from './core/security/throttler-config.service';
 import { MetricsModule } from './core/observability/metrics.module';
 import { LoggerConfigModule } from './core/logger/logger.module';
+import { BullModule } from '@nestjs/bullmq';
+import { ConfigService } from '@nestjs/config';
+import { AuditModule } from './modules/audit/audit.module';
+import { BetaModule } from './modules/beta/beta.module';
+// import { StripeModule } from './modules/billing/stripe.module'; // Deferred to Sprint 6
 
 @Module({
   imports: [
@@ -25,8 +30,21 @@ import { LoggerConfigModule } from './core/logger/logger.module';
     }),
     LoggerConfigModule,
     MetricsModule,
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        connection: {
+          host: configService.get('REDIS_HOST'),
+          port: configService.get('REDIS_PORT'),
+        },
+      }),
+      inject: [ConfigService],
+    }),
     CoreModule,
     AuthModule,
+    AuthModule,
+    AuditModule,
+    BetaModule,
   ],
   controllers: [AppController],
   providers: [
