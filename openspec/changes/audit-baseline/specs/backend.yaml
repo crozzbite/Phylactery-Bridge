@@ -1,0 +1,41 @@
+spec: 0.1.0
+title: Phylactery Bridge Backend
+type: service
+language: typescript
+framework: nestjs
+
+architecture:
+  style: modular-monolith
+  modules:
+    - name: Core
+      path: src/core
+      responsibilities:
+        - Auth (strategies, guards, decorators)
+        - Observability (logger, metrics)
+        - Database (Prisma)
+        - Security (Throttler)
+    - name: Audit
+      path: src/modules/audit
+      responsibilities:
+        - Audit Session Management
+        - Audit Repositories
+        - Audit Worker
+    - name: Billing
+      path: src/modules/billing
+      responsibilities:
+        - Stripe Integration
+    - name: Identity
+      path: src/modules/identity
+      responsibilities:
+        - Usage Counters
+
+database:
+  orm: prisma
+  type: postgresql (inferred)
+
+api:
+  style: rest
+  controllers:
+    - AuthController
+    - AuditController
+    - StripeController

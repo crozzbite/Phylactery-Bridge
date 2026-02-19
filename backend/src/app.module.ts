@@ -16,7 +16,8 @@ import { LoggerConfigModule } from './core/logger/logger.module';
 import { BullModule } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import { AuditModule } from './modules/audit/audit.module';
-import { StripeModule } from './modules/billing/stripe.module';
+import { BetaModule } from './modules/beta/beta.module';
+// import { StripeModule } from './modules/billing/stripe.module'; // Deferred to Sprint 6
 
 @Module({
   imports: [
@@ -41,7 +42,9 @@ import { StripeModule } from './modules/billing/stripe.module';
     }),
     CoreModule,
     AuthModule,
+    AuthModule,
     AuditModule,
+    BetaModule,
   ],
   controllers: [AppController],
   providers: [

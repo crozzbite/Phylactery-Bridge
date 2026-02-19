@@ -131,11 +131,11 @@ gantt
     Auth Frontend (AngularFire)  :done,    s1d, after s1c, 1d
     Schema Gap Fix & Tests       :active,  s1e, 2026-02-16, 3d
 
-    section Sprint 2: Billing & Subscriptions
-    Stripe Checkout Integration  :         s2a, after s1e, 3d
-    Webhook Handler              :         s2b, after s2a, 2d
-    Pricing Page + Upgrade Flow  :         s2c, after s2b, 3d
-    Billing Tests                :         s2d, after s2c, 2d
+    section Sprint 2: Beta Access System (Pivot)
+    Access Code Database        :         s2a, after s1e, 1d
+    Gatekeeper Logic (Backend)   :         s2b, after s2a, 2d
+    Frontend Gate & Guards       :         s2c, after s2b, 2d
+    Beta Verification            :         s2d, after s2c, 1d
 
     section Sprint 3: Platform Core (Backend)
     Workspace CRUD               :         s3a, after s2d, 2d
@@ -155,11 +155,12 @@ gantt
     SSE Streaming E2E            :         s5c, after s5b, 3d
     RAG Context Injection        :         s5d, after s5c, 2d
 
-    section Sprint 6: CI/CD & Launch
-    GitHub Actions Pipeline      :         s6a, after s5d, 2d
-    Security Audit               :         s6b, after s6a, 2d
-    Mobile Polish (PWA)          :         s6c, after s6b, 2d
-    Production Deploy            :         s6d, after s6c, 2d
+    section Sprint 6: Launch & Monetization
+    Stripe Integration (Deferred):         s6a, after s5d, 3d
+    GitHub Actions Pipeline      :         s6b, after s6a, 2d
+    Security Audit               :         s6c, after s6b, 2d
+    Mobile Polish (PWA)          :         s6d, after s6c, 2d
+    Production Deploy            :         s6e, after s6d, 1d
 ```
 
 ### Status por Sprint
@@ -167,11 +168,11 @@ gantt
 | Sprint | Nombre | Semanas | Status | Progress |
 |--------|--------|---------|--------|----------|
 | **1** | Foundation & Identity | 1-2 | 🟡 In Progress | **85%** (tests + schema fix pending) |
-| **2** | Billing & Subscriptions | 3-4 | ⬜ Not Started | 0% |
+| **2** | Beta Access System | 3-4 | ✅ Completed | **100%** (Pivot Executed) |
 | **3** | Platform Core (Backend) | 5-6 | ⬜ Not Started | 0% |
 | **4** | Platform Core (Frontend) | 7-8 | ⬜ Not Started | 0% |
 | **5** | AI Engine Integration | 9-10 | ⬜ Not Started | 0% |
-| **6** | CI/CD & Launch | 11-12 | ⬜ Not Started | 0% |
+| **6** | Launch & Monetization | 11-12 | ⬜ Not Started | 0% |
 | **Buffer** | Bug fixes & polish | 13 | ⬜ Not Started | 0% |
 
 ---

@@ -1,0 +1,102 @@
+%% Phylactery Billing Flow — Production Grade
+%% Covers: Customer Creation, Checkout, Fulfillment, Failures, and Cancellation
+
+sequenceDiagram
+    participant User
+    participant FE as Frontend (Angular)
+    participant BE as Backend (NestJS)
+    participant DB as Postgres
+    participant Stripe as Stripe API
+
+    %% ═══════════════════════════════════════
+    %% PHASE 1: Checkout (Synchronous)
+    %% ═══════════════════════════════════════
+    Note over User, Stripe: Phase 1 — Checkout Initiation
+
+    User->>FE: Click "Upgrade to PRO"
+    FE->>BE: POST /api/v1/billing/checkout {priceId}
+    
+    BE->>DB: Find User (get stripeCustomerId)
+    
+    alt No stripeCustomerId exists
+        BE->>Stripe: Create Customer (email, metadata.userId)
+        Stripe-->>BE: customer_id
+        BE->>DB: UPDATE User SET stripeCustomerId = customer_id
+    end
+    
+    BE->>Stripe: Create Checkout Session (customer, priceId, mode=subscription)
+    Stripe-->>BE: {sessionId, url}
+    BE-->>FE: {sessionId, url}
+    FE->>Stripe: window.location.href = url (Redirect)
+    
+    User->>Stripe: Complete Payment Form
+    
+    alt Payment Succeeds
+        Stripe->>FE: Redirect to /billing/success?session_id=xxx
+        FE->>User: Show "Subscription Active!" 
+    else Payment Fails / Abandoned
+        Stripe->>FE: Redirect to /billing/cancel
+        FE->>User: Show "Payment cancelled"
+    end
+
+    %% ═══════════════════════════════════════
+    %% PHASE 2: Fulfillment (Async Webhooks)
+    %% ═══════════════════════════════════════
+    Note over Stripe, DB: Phase 2 — Async Fulfillment (Webhooks)
+
+    Stripe->>BE: POST /api/v1/billing/webhook (checkout.session.completed)
+    BE->>BE: Verify Stripe-Signature (raw body)
+    BE->>DB: Check event.id (idempotency guard)
+    
+    alt Event NOT processed yet
+        BE->>DB: UPSERT Subscription (stripeSubId, plan=PRO, status=ACTIVE)
+        BE->>DB: UPDATE User SET role=PRO
+        BE->>DB: Store event.id as processed
+        BE-->>Stripe: 200 OK
+    else Event already processed
+        BE-->>Stripe: 200 OK (no-op)
+    end
+
+    %% ═══════════════════════════════════════
+    %% PHASE 3: Recurring Payments
+    %% ═══════════════════════════════════════
+    Note over Stripe, DB: Phase 3 — Recurring Invoice Cycle
+
+    Stripe->>BE: invoice.payment_succeeded
+    BE->>BE: Verify Signature + Idempotency
+    BE->>DB: UPDATE Subscription SET status=ACTIVE, currentPeriodEnd=...
+    BE->>DB: CREATE Invoice (amount, stripeInvoiceId, status=paid)
+    BE-->>Stripe: 200 OK
+
+    %% ═══════════════════════════════════════
+    %% PHASE 4: Payment Failure (Dunning)
+    %% ═══════════════════════════════════════
+    Note over Stripe, DB: Phase 4 — Payment Failure & Dunning
+
+    Stripe->>BE: invoice.payment_failed
+    BE->>BE: Verify Signature + Idempotency
+    BE->>DB: UPDATE Subscription SET status=PAST_DUE
+    BE->>DB: CREATE Invoice (status=open)
+    Note over BE: Stripe retries automatically (Smart Retries)
+    BE-->>Stripe: 200 OK
+
+    %% ═══════════════════════════════════════
+    %% PHASE 5: Subscription Changes
+    %% ═══════════════════════════════════════
+    Note over Stripe, DB: Phase 5 — Plan Changes & Cancellation
+
+    alt User upgrades/downgrades via Portal
+        Stripe->>BE: customer.subscription.updated
+        BE->>BE: Verify Signature + Idempotency
+        BE->>DB: UPDATE Subscription SET plan=NEW_PLAN
+        BE->>DB: UPDATE User SET role=NEW_ROLE
+        BE-->>Stripe: 200 OK
+    end
+
+    alt Subscription cancelled (exhausted retries or user cancels)
+        Stripe->>BE: customer.subscription.deleted
+        BE->>BE: Verify Signature + Idempotency
+        BE->>DB: UPDATE Subscription SET status=CANCELED
+        BE->>DB: UPDATE User SET role=FREE
+        BE-->>Stripe: 200 OK
+    end

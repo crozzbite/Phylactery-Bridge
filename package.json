@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "start:backend": "cd backend && npm run start:dev",
-    "start:frontend": "cd frontend && npm start",
+    "start:backend": "cd backend && bun run start:dev",
+    "start:frontend": "cd frontend && bun start",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
-    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
-    "test:backend": "cd backend && npm run test",
-    "test:frontend": "cd frontend && npm run test"
+    "install:all": "bun install && cd backend && bun install && cd ../frontend && bun install",
+    "test:backend": "cd backend && bun run test",
+    "test:frontend": "cd frontend && bun run test"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

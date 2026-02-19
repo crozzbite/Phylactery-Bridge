@@ -1,7 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { IonContent, IonButton, IonIcon, IonSpinner } from '@ionic/angular/standalone';
-import { AuthService } from '../../core/services/auth.service';
+import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-login',
@@ -66,7 +66,7 @@ import { AuthService } from '../../core/services/auth.service';
   `],
 })
 export class LoginComponent {
-  readonly authService = inject(AuthService);
+  readonly authService: AuthService = inject(AuthService);
   private router = inject(Router);
 
   async loginWithGoogle() {

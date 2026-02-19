@@ -1,0 +1,73 @@
+<div class="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4 selection:bg-red-600 selection:text-white">
+  
+  <!-- Logo / Brand -->
+  <div class="mb-12 text-center animate-fade-in-down">
+    <h1 class="text-4xl font-bold tracking-tighter mb-2">PHYLACTERY<span class="text-red-600">.</span>BRIDGE</h1>
+    <p class="text-gray-500 tracking-widest text-sm uppercase">Private Beta Access</p>
+  </div>
+
+  <!-- Gate Card -->
+  <div class="w-full max-w-md bg-zinc-900/50 border border-zinc-800 p-8 rounded-none backdrop-blur-sm shadow-2xl">
+    
+    <!-- Status Indicator -->
+    <div class="mb-6 flex items-center justify-between border-b border-zinc-800 pb-4">
+      <span class="text-xs uppercase tracking-wider text-gray-400">System Status</span>
+      <span class="flex items-center text-xs font-mono text-green-500">
+        <span class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+        ONLINE
+      </span>
+    </div>
+
+    <!-- Form -->
+    <div class="space-y-6">
+      <div>
+        <label for="access-code" class="block text-xs font-mono text-gray-400 mb-2 uppercase tracking-wide">Enter Access Code</label>
+        <input 
+          id="access-code"
+          type="text" 
+          [(ngModel)]="code"
+          [disabled]="loading()"
+          placeholder="PHY-XXXX-XXXX"
+          class="w-full bg-black border border-zinc-700 text-white px-4 py-3 font-mono text-lg focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all placeholder-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed uppercase text-center tracking-widest"
+          (keydown.enter)="redeem()"
+        >
+      </div>
+
+      <!-- Actions -->
+      <button 
+        (click)="redeem()" 
+        [disabled]="loading() || !code()"
+        class="w-full bg-white text-black font-bold py-3 px-4 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm uppercase tracking-wider flex items-center justify-center group"
+      >
+        <span *ngIf="!loading()">Initialize Sequence</span>
+        <span *ngIf="loading()" class="animate-pulse">Verifying...</span>
+        <svg *ngIf="!loading()" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+        </svg>
+      </button>
+
+      <!-- Feedback Messages -->
+      <div *ngIf="error()" class="p-3 bg-red-900/20 border border-red-900/50 text-red-500 text-xs font-mono text-center animate-shake">
+        ERROR: {{ error() }}
+      </div>
+
+      <div *ngIf="success()" class="p-3 bg-green-900/20 border border-green-900/50 text-green-500 text-xs font-mono text-center animate-fade-in-up">
+        SUCCESS: {{ success() }}
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="mt-8 pt-4 border-t border-zinc-800 text-center">
+      <button (click)="logout()" class="text-xs text-zinc-600 hover:text-white transition-colors uppercase tracking-widest hover:underline">
+        Disconnect Session
+      </button>
+    </div>
+  </div>
+
+  <!-- Footer Info -->
+  <div class="mt-12 text-center text-zinc-700 text-xs font-mono">
+    <p>SECURE TERMINAL // ENCRYPTED CONNECTION</p>
+    <p class="mt-1">ID: {{ 'session-' + (code() ? 'active' : 'idle') }}</p>
+  </div>
+
+</div>
