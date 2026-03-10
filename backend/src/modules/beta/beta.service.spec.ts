@@ -3,7 +3,23 @@ import { BetaService } from './beta.service';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 
-const mockPrismaService = {
+type MockPrismaService = {
+  accessCode: {
+    findUnique: jest.Mock;
+    update: jest.Mock;
+    updateMany: jest.Mock;
+  };
+  user: {
+    findUnique: jest.Mock;
+    update: jest.Mock;
+  };
+  accessCodeRedemption: {
+    create: jest.Mock;
+  };
+  $transaction: jest.Mock;
+};
+
+const mockPrismaService: MockPrismaService = {
   accessCode: {
     findUnique: jest.fn(),
     update: jest.fn(),
