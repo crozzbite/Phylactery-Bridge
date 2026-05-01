@@ -1,6 +1,7 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://api.phylactery-bridge.com',
+  // TODO(hardening-baseline): replace with the confirmed production API URL.
+  apiUrl: 'https://api.todo-phylactery-bridge.com',
   firebase: {
     apiKey: 'YOUR_API_KEY',
     authDomain: 'YOUR_PROJECT.firebaseapp.com',

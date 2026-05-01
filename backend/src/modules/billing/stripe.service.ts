@@ -48,13 +48,13 @@ export class StripeService {
     return { url: session.url };
   }
 
-  async createCustomerPortal(userId: string) {
+  async createCustomerPortal(userId: string, returnUrl?: string) {
      const user = await this.prisma.user.findUnique({ where: { id: userId } });
      if (!user || !user.stripeCustomerId) throw new Error('User/Customer not found');
 
      const session = await this.stripe.billingPortal.sessions.create({
          customer: user.stripeCustomerId,
-         return_url: `${this.configService.get('ALLOWED_ORIGINS').split(',')[0]}/dashboard`,
+         return_url: returnUrl || `${this.configService.get('ALLOWED_ORIGINS').split(',')[0]}/dashboard`,
      });
 
      return { url: session.url };

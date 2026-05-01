@@ -73,7 +73,7 @@ describe('AuditController', () => {
 
     it('should throw UnauthorizedException if user not found', async () => {
         const req = { user: { uid: 'test-uid' } };
-        const body = { workspaceId: 'ws-1' };
+        const body = { workspaceId: 'ws-1', title: 'Test Audit', inputs: {} };
   
         mockPrismaService.user.findUnique.mockResolvedValue(null);
   

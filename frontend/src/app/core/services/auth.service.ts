@@ -1,9 +1,15 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { Auth, GoogleAuthProvider, signInWithPopup, signOut, user, User } from '@angular/fire/auth';
+import { Auth, GoogleAuthProvider, signInWithPopup, signOut, user } from '@angular/fire/auth';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
-import { Observable, from } from 'rxjs';
 import { toSignal } from '@angular/core/rxjs-interop';
+
+export function isFullyAuthenticatedState(
+  hasFirebaseUser: boolean,
+  internalUserResolved: boolean | null,
+): boolean {
+  return hasFirebaseUser && internalUserResolved === true;
+}
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -15,6 +21,7 @@ export class AuthService {
 
   /** Loading state */
   readonly isLoading = signal(false);
+  readonly internalUserResolved = signal<boolean | null>(null);
 
   async loginWithGoogle(): Promise<void> {
     this.isLoading.set(true);
@@ -27,6 +34,7 @@ export class AuthService {
       await this.http.post(`${environment.apiUrl}/auth/register`, {}, {
         headers: { Authorization: `Bearer ${token}` },
       }).toPromise();
+      this.internalUserResolved.set(true);
     } finally {
       this.isLoading.set(false);
     }
@@ -34,9 +42,18 @@ export class AuthService {
 
   async logout(): Promise<void> {
     await signOut(this.auth);
+    this.internalUserResolved.set(null);
+  }
+
+  clearLocalAuthExpectation(): void {
+    this.internalUserResolved.set(null);
+  }
+
+  setInternalUserResolved(resolved: boolean): void {
+    this.internalUserResolved.set(resolved);
   }
 
   get isAuthenticated(): boolean {
-    return this.currentUser() !== null;
+    return isFullyAuthenticatedState(this.currentUser() !== null, this.internalUserResolved());
   }
 }

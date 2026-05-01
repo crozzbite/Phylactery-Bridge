@@ -2,21 +2,28 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  ForbiddenException,
   UnauthorizedException,
   Logger,
 } from '@nestjs/common';
 import { FirebaseService } from '../auth/firebase.service';
+import { IdentityResolverService } from '../auth/identity-resolver.service';
+import type { AuthenticatedRequest } from '../auth/interfaces';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
   private readonly logger = new Logger(AuthGuard.name);
 
-  constructor(private readonly firebaseService: FirebaseService) {}
+  constructor(
+    private readonly firebaseService: FirebaseService,
+    private readonly identityResolver: IdentityResolverService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const authHeader = request.headers.authorization;
-    const traceId = request.headers['x-request-id'] ?? 'no-trace';
+    const traceHeader = request.headers['x-request-id'];
+    const traceId = Array.isArray(traceHeader) ? traceHeader[0] : traceHeader ?? 'no-trace';
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       this.logger.warn(`[${traceId}] Auth attempt with no/invalid Bearer header`);
@@ -25,13 +32,26 @@ export class AuthGuard implements CanActivate {
 
     const token = authHeader.split(' ')[1];
 
+    let decodedToken: { uid: string; email?: string } & Record<string, unknown>;
     try {
-      const decodedToken = await this.firebaseService.auth.verifyIdToken(token);
-      request.user = decodedToken;
-      return true;
+      decodedToken = await this.firebaseService.auth.verifyIdToken(token);
     } catch (error) {
       this.logger.warn(`[${traceId}] Token verification failed: ${(error as Error).message}`);
       throw new UnauthorizedException('Invalid or expired token');
     }
+
+    const normalizedIdentity = await this.identityResolver.resolve({
+      firebaseUid: decodedToken.uid,
+      email: decodedToken.email,
+      claims: decodedToken,
+    });
+
+    if (!normalizedIdentity) {
+      this.logger.warn(`[${traceId}] Authenticated Firebase identity has no internal user mapping`);
+      throw new ForbiddenException('IDENTITY_NOT_RESOLVED');
+    }
+
+    request.user = normalizedIdentity;
+    return true;
   }
 }
