@@ -1,54 +1,78 @@
-# Phylactery Bridge
+<h1 align="center">🌉 Phylactery Bridge</h1>
 
-This is the monorepo for **Phylactery Bridge**, the SaaS platform connecting users to the Phylactery AI Engine.
+<p align="center">
+  <strong>The Gateway to Cognitive Software</strong><br>
+  <em>The SaaS platform connecting users to the Phylactery AI Engine.</em>
+</p>
 
-## Structure
+<p align="center">
+  <a href="#quick-start">Quick Start</a> &bull;
+  <a href="#estructura">Estructura</a> &bull;
+  <a href="#desarrollo">Desarrollo</a> &bull;
+  <a href="#arquitectura">Arquitectura</a>
+</p>
 
-- **backend/**: NestJS BFF (Backend for Frontend). Handles Identity, Billing, and Platform business logic.
-- **frontend/**: Angular v19 + TailwindCSS. The user-facing web application (PWA).
-- **docker-compose.yml**: Local infrastructure (PostgreSQL, Redis).
+Este es el monorepo oficial de **Phylactery Bridge**, el núcleo comercial (SaaS) que enlaza y distribuye el acceso a los agentes y recursos orquestados por el motor de inteligencia de Phylactery.
 
-## Getting Started
+---
 
-### Prerequisites
+## 📦 Estructura
+
+- **`backend/`**: NestJS BFF (Backend for Frontend). Maneja Identidad, Facturación y Lógica de Negocio.
+- **`frontend/`**: Angular v19 + TailwindCSS. Aplicación web de cara al usuario (PWA).
+- **`docker-compose.yml`**: Infraestructura local (PostgreSQL, Redis).
+
+## 🚀 Quick Start
+
+### Requisitos
 
 - Node.js 20+
+- **Bun** (Required Package Manager)
 - Docker & Docker Compose
-- Stripe CLI (optional, for webhook testing)
+- Stripe CLI (Opcional, para testing de webhooks)
 
-### Installation
+### 1. Instalación
 
-1.  Clone the repository.
-2.  Install dependencies for both projects:
-    ```bash
-    cd backend && npm install
-    cd ../frontend && npm install
-    ```
-3.  Set up environment variables:
-    ```bash
-    cp .env.example .env
-    # Update .env with your local secrets
-    ```
+1. Clona el repositorio a tu máquina local.
+2. Instala las dependencias en ambos dominios utilizando `bun`:
+```bash
+cd backend && bun install
+cd ../frontend && bun install
+```
+3. Configura tus variables de entorno:
+```bash
+cp .env.example .env
+# Actualiza .env con tus secretos locales
+```
 
-### Development
+## 🛠️ Desarrollo
 
-1.  Start infrastructure:
-    ```bash
-    docker-compose up -d
-    ```
+### 1. Infraestructura de Base
+Inicia los servicios de PostgreSQL y Redis:
+```bash
+docker-compose up -d
+```
 
-2.  Start Backend (Port 3000):
-    ```bash
-    cd backend
-    npm run start:dev
-    ```
+### 2. Iniciar Backend (Puerto 3000)
+```bash
+cd backend
+bun run start:dev
+```
 
-3.  Start Frontend (Port 4200):
-    ```bash
-    cd frontend
-    npm start
-    ```
+### 3. Iniciar Frontend (Puerto 4200)
+```bash
+cd frontend
+bun run start
+```
 
-## Architecture
+## 🧠 Arquitectura
 
-See [TECHNICAL_ARCHITECTURE.md](./TECHNICAL_ARCHITECTURE.md) for details.
+Disponemos de documentación completa sobre el mapeo de puertos y la separación de dominios.
+👉 Consulta el [TECHNICAL_ARCHITECTURE.md](./TECHNICAL_ARCHITECTURE.md) para más detalles.
+
+---
+
+<p align="center">
+  <strong>Developed by SkullRender</strong><br>
+  <em>Rational Creativity: Bones + Brain.</em>
+</p>
