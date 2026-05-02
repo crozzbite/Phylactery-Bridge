@@ -16,15 +16,17 @@
 #   PROVIDER="github:gpt-4o"
 #   PROVIDER="github:deepseek-r1"
 #
-# Default: GitHub Models (uses `gh auth token` — no separate API key).
-# Model slugs: https://github.com/marketplace/models
-# See GGA docs for examples: github:gpt-4o, github:gpt-4.1, github:deepseek-r1, …
+# Active provider: GitHub Models (uses `gh auth token`). No extra API key.
+# GGA's github provider shells out to `python3` for JSON; on Windows + Git Bash,
+# ensure `python3` is the real interpreter (e.g. python3.exe next to python.exe
+# under ...\Python313\, or disable Store "App execution aliases" for python3).
+#
+# Claude Code CLI: POSTPONED — do not set PROVIDER="claude" until installed and
+# tested (`claude --version`). Then you may switch and drop the GitHub dependency.
 #
 # Override ad-hoc without editing this file:
 #   PowerShell: $env:GGA_PROVIDER='claude'
 #   Bash:       export GGA_PROVIDER=claude
-#
-# When Claude Code CLI is installed, set PROVIDER="claude" for native Claude reviews.
 PROVIDER="github:gpt-4.1"
 
 # File patterns to include in review (comma-separated)
