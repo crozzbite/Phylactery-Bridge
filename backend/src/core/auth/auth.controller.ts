@@ -5,6 +5,7 @@ import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { plainToInstance } from 'class-transformer';
+import type { AuthenticatedRequest } from './interfaces';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -25,9 +26,8 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({ status: 200, type: AuthResponseDto })
-  async getProfile(@Req() req: any): Promise<AuthResponseDto> {
-    // req.user is set by AuthGuard (decoded Firebase token)
-    const user = await this.authService.getUserProfile(req.user.uid);
+  async getProfile(@Req() req: AuthenticatedRequest): Promise<AuthResponseDto> {
+    const user = await this.authService.getUserProfile(req.user.firebaseUid, req.user.userId);
     return plainToInstance(AuthResponseDto, user, { excludeExtraneousValues: true });
   }
 }

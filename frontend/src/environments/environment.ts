@@ -1,5 +1,6 @@
 export const environment = {
   production: false,
+  // Local development backend URL.
   apiUrl: 'http://localhost:3000',
   firebase: {
     apiKey: 'YOUR_API_KEY',

@@ -42,7 +42,6 @@ import { BetaModule } from './modules/beta/beta.module';
     }),
     CoreModule,
     AuthModule,
-    AuthModule,
     AuditModule,
     BetaModule,
   ],

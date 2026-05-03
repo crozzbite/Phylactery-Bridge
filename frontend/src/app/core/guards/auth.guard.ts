@@ -1,20 +1,26 @@
 import { CanActivateFn, Router } from '@angular/router';
 import { inject } from '@angular/core';
-import { Auth } from '@angular/fire/auth';
-import { map, take } from 'rxjs/operators';
-import { user } from '@angular/fire/auth';
+import { AuthService } from '../services/auth.service';
 
 export const authGuard: CanActivateFn = () => {
-  const auth = inject(Auth);
+  const authService = inject(AuthService);
   const router = inject(Router);
+  const currentUser = authService.currentUser();
+  const internalUserResolved = authService.internalUserResolved();
 
-  return user(auth).pipe(
-    take(1),
-    map((currentUser) => {
-      if (currentUser) {
-        return true;
-      }
-      return router.createUrlTree(['/login']);
-    }),
-  );
+  if (!currentUser) {
+    return router.createUrlTree(['/login']);
+  }
+
+  if (internalUserResolved === false) {
+    return router.createUrlTree(['/login'], {
+      queryParams: { intent: 'onboarding' },
+    });
+  }
+
+  if (internalUserResolved !== true) {
+    return router.createUrlTree(['/login']);
+  }
+
+  return true;
 };

@@ -3,6 +3,8 @@ import { BetaService } from './beta.service';
 import { AuthGuard } from '../../core/guards/auth.guard';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
+import type { AuthenticatedRequest } from '../../core/auth/interfaces';
+import { RedeemBetaCodeDto } from './dto/redeem-beta-code.dto';
 
 @ApiTags('Beta Access')
 @Controller('beta')
@@ -14,14 +16,14 @@ export class BetaController {
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Redeem a beta access code' })
-  @ApiBody({ schema: { type: 'object', properties: { code: { type: 'string', example: 'PHY-LAUNCH' } } } })
+  @ApiBody({ type: RedeemBetaCodeDto })
   @ApiResponse({ status: 200, description: 'Access granted.', schema: { example: { success: true, role: 'PRO' } } })
   @ApiResponse({ status: 400, description: 'Invalid code, expired, or limit reached.' })
   @ApiResponse({ status: 409, description: 'User already has beta access.' })
   @ApiResponse({ status: 429, description: 'Too many requests.' })
   @HttpCode(HttpStatus.OK)
-  async redeem(@Request() req: any, @Body('code') code: string) {
-    return this.betaService.redeemCode(req.user.uid, code);
+  async redeem(@Request() req: AuthenticatedRequest, @Body() dto: RedeemBetaCodeDto) {
+    return this.betaService.redeemCode(req.user.userId, dto.code);
   }
 
   @Get('status')
@@ -29,7 +31,7 @@ export class BetaController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Check current user beta status' })
   @ApiResponse({ status: 200, description: 'Returns beta access status.', schema: { example: { hasAccess: true, role: 'PRO' } } })
-  async getStatus(@Request() req: any) {
-    return this.betaService.getStatus(req.user.uid);
+  async getStatus(@Request() req: AuthenticatedRequest) {
+    return this.betaService.getStatus(req.user.userId);
   }
 }

@@ -58,10 +58,10 @@ export class AuthService {
     return user as IUser | null;
   }
 
-  async getUserProfile(firebaseUid: string): Promise<IUser> {
-    const user = await this.prisma.user.findUnique({
-      where: { firebaseUid },
-    });
+  async getUserProfile(firebaseUid: string, userId?: string): Promise<IUser> {
+    const user = userId
+      ? await this.prisma.user.findUnique({ where: { id: userId } })
+      : await this.prisma.user.findUnique({ where: { firebaseUid } });
 
     if (!user) {
       throw new UnauthorizedException('User not found');

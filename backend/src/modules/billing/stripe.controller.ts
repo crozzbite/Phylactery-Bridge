@@ -2,32 +2,23 @@
 import { Controller, Post, Body, Req, UseGuards, UnauthorizedException, Headers } from '@nestjs/common';
 import { StripeService } from './stripe.service';
 import { AuthGuard } from '../../core/guards/auth.guard';
-import { PrismaService } from '../../core/prisma/prisma.service';
+import type { AuthenticatedRequest } from '../../core/auth/interfaces';
+import { CreateCheckoutSessionDto, CreatePortalSessionDto } from './dto/stripe-session.dto';
 
 @Controller('billing')
 export class StripeController {
-  constructor(
-    private readonly stripeService: StripeService,
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly stripeService: StripeService) {}
 
   @Post('checkout')
   @UseGuards(AuthGuard)
-  async createCheckoutSession(@Body() body: { priceId: string }, @Req() req: any) {
-     // Resolve User ID from Firebase UID
-     const user = await this.prisma.user.findUnique({ where: { firebaseUid: req.user.uid } });
-     if (!user) throw new UnauthorizedException('User not found');
-
-     return this.stripeService.createCheckoutSession(user.id, body.priceId);
+  async createCheckoutSession(@Body() body: CreateCheckoutSessionDto, @Req() req: AuthenticatedRequest) {
+     return this.stripeService.createCheckoutSession(req.user.userId, body.priceId);
   }
 
   @Post('portal')
   @UseGuards(AuthGuard)
-  async createCustomerPortal(@Req() req: any) {
-    const user = await this.prisma.user.findUnique({ where: { firebaseUid: req.user.uid } });
-    if (!user) throw new UnauthorizedException('User not found');
-    
-    return this.stripeService.createCustomerPortal(user.id);
+  async createCustomerPortal(@Body() body: CreatePortalSessionDto, @Req() req: AuthenticatedRequest) {
+    return this.stripeService.createCustomerPortal(req.user.userId, body.returnUrl);
   }
 
   @Post('webhook')

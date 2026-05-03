@@ -5,6 +5,7 @@ import { AuthService } from './auth.service';
 import { AuthGuard } from '../guards/auth.guard';
 import { RegisterDto } from './dto/register.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
+import type { AuthenticatedRequest } from './interfaces';
 
 const mockAuthService = {
   register: jest.fn(),
@@ -59,7 +60,7 @@ describe('AuthController', () => {
 
   describe('getProfile', () => {
     it('should return user profile', async () => {
-        const req = { user: { uid: 'uid' } };
+        const req = { user: { firebaseUid: 'firebase-uid', userId: 'user-id-123' } } as AuthenticatedRequest;
         const user = { id: '1', email: 'test@phylactery.ai', firebaseUid: 'uid', role: 'FREE', createdAt: new Date() };
         const expectedResponse = { 
             id: '1', 
@@ -72,7 +73,7 @@ describe('AuthController', () => {
 
         const response = await controller.getProfile(req);
         expect(response).toEqual(expectedResponse);
-        expect(service.getUserProfile).toHaveBeenCalledWith('uid');
+        expect(service.getUserProfile).toHaveBeenCalledWith('firebase-uid', 'user-id-123');
     });
   });
 });
